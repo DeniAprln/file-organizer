@@ -1,19 +1,19 @@
 """
-File Organizer Otomatis
+Automatic File Organizer
 ------------------------
-Lihat docs/pre-project.md untuk problem statement dan scope lengkap.
+See docs/pre-project.md for the problem statement and full scope.
 
-Status: bisa memindahkan file secara nyata, dengan mode --dry-run
-untuk simulasi aman sebelum eksekusi.
+Status: can actually move files, with --dry-run mode
+for safe simulation before execution.
 """
 
 import sys
 import shutil
 from pathlib import Path
 
-# Mapping ekstensi -> nama folder kategori.
-# Dipisah jadi dictionary (bukan if/elif panjang) supaya gampang
-# ditambah tanpa mengubah logic di get_category().
+# Extension mapping -> category folder name.
+# Separated into a dictionary (instead of long if/elif) so it's easy
+# to add without changing the logic in get_category().
 FILE_CATEGORIES = {
     "Images": [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"],
     "Documents": [".pdf", ".doc", ".docx", ".txt", ".md", ".odt"],
@@ -27,9 +27,9 @@ FILE_CATEGORIES = {
 
 def get_category(extension: str) -> str:
     """
-    Tentukan kategori folder dari ekstensi file.
-    Ekstensi yang tidak dikenal masuk ke "Others" (fallback default),
-    sesuai mitigasi risiko #3 di pre-project.md.
+    Determine the category folder from the file extension.
+    Unknown extensions go to "Others" (default fallback),
+    according to risk mitigation #3 in pre-project.md.
     """
     extension = extension.lower()
     for category, extensions in FILE_CATEGORIES.items():
@@ -40,11 +40,11 @@ def get_category(extension: str) -> str:
 
 def resolve_collision(destination: Path) -> Path:
     """
-    Kalau nama file sudah ada di folder tujuan, jangan menimpa file lama.
-    Tambahkan angka di belakang nama file: foto.jpg -> foto_1.jpg
+    If a file with the same name already exists in the destination folder, do not overwrite the old file.
+    Add a number behind the file name: photo.jpg -> photo_1.jpg
 
-    Lihat docs/decision-log.md untuk alasan kenapa pendekatan ini dipilih
-    dibanding skip atau overwrite.
+    See docs/decision-log.md for the reason why this approach was chosen
+    instead of skip or overwrite.
     """
     if not destination.exists():
         return destination
@@ -64,22 +64,22 @@ def resolve_collision(destination: Path) -> Path:
 
 def organize_folder(folder_path: str, dry_run: bool = False) -> None:
     """
-    Fungsi utama: scan folder, lalu pindahkan tiap file ke subfolder
-    sesuai kategorinya.
+    Main function: scan folder, then move each file to a subfolder
+    according to its category.
 
-    dry_run=True artinya cuma SIMULASI (print apa yang AKAN terjadi,
-    tanpa benar-benar memindahkan file). Ini penting untuk testing aman
-    sebelum dijalankan ke folder asli — sesuai mitigasi risiko #1
-    di pre-project.md.
+    dry_run=True means only SIMULATION (print what WILL happen,
+    without actually moving the files). This is important for safe testing
+    before running on the real folder — according to risk mitigation #1
+    in pre-project.md.
     """
     folder = Path(folder_path)
 
     if not folder.exists():
-        print(f"❌ Folder tidak ditemukan: {folder}")
+        print(f"❌ Folder not found: {folder}")
         return
 
     if not folder.is_dir():
-        print(f"❌ Path ini bukan folder: {folder}")
+        print(f"❌ This path is not a folder: {folder}")
         return
 
     moved_count = 0
@@ -102,14 +102,14 @@ def organize_folder(folder_path: str, dry_run: bool = False) -> None:
 
         moved_count += 1
 
-    print(f"\nSelesai. {moved_count} file diproses.")
+    print(f"\nDone. {moved_count} files processed.")
     if dry_run:
-        print("(Ini cuma simulasi — jalankan tanpa --dry-run untuk eksekusi nyata)")
+        print("(This is only a simulation — run without --dry-run for real execution)")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Cara pakai: python organizer.py <folder_path> [--dry-run]")
+        print("Usage: python organizer.py <folder_path> [--dry-run]")
         sys.exit(1)
 
     target_path = sys.argv[1]

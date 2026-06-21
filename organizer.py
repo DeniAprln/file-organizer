@@ -3,11 +3,12 @@ File Organizer Otomatis
 ------------------------
 Lihat docs/pre-project.md untuk problem statement dan scope lengkap.
 
-Status: sudah bisa mengkategorikan file berdasarkan ekstensi.
-Belum memindahkan file secara nyata (masih tahap kategorisasi saja).
+Status: bisa memindahkan file secara nyata, dengan mode --dry-run
+untuk simulasi aman sebelum eksekusi.
 """
 
 import sys
+import shutil
 from pathlib import Path
 
 # Mapping ekstensi -> nama folder kategori.
@@ -39,9 +40,13 @@ def get_category(extension: str) -> str:
 
 def organize_folder(folder_path: str, dry_run: bool = False) -> None:
     """
-    Fungsi utama. Saat ini sudah bisa mengkategorikan tiap file,
-    tapi BELUM benar-benar memindahkannya (lihat print di bawah).
-    Pemindahan nyata + dry-run mode akan ditambahkan di commit berikutnya.
+    Fungsi utama: scan folder, lalu pindahkan tiap file ke subfolder
+    sesuai kategorinya.
+
+    dry_run=True artinya cuma SIMULASI (print apa yang AKAN terjadi,
+    tanpa benar-benar memindahkan file). Ini penting untuk testing aman
+    sebelum dijalankan ke folder asli — sesuai mitigasi risiko #1
+    di pre-project.md.
     """
     folder = Path(folder_path)
 
@@ -53,12 +58,30 @@ def organize_folder(folder_path: str, dry_run: bool = False) -> None:
         print(f"❌ Path ini bukan folder: {folder}")
         return
 
+    moved_count = 0
+
     for item in folder.iterdir():
         if item.is_dir():
             continue
+
         category = get_category(item.suffix)
-        print(f"{item.name} -> akan masuk kategori: {category}")
-    # TODO: pemindahan file nyata + dry-run mode (commit berikutnya)
+        target_folder = folder / category
+        destination = target_folder / item.name
+
+        if dry_run:
+            print(f"[DRY RUN] {item.name} -> {category}/{destination.name}")
+        else:
+            target_folder.mkdir(exist_ok=True)
+            shutil.move(str(item), str(destination))
+            print(f"✅ {item.name} -> {category}/{destination.name}")
+
+        moved_count += 1
+
+    print(f"\nSelesai. {moved_count} file diproses.")
+    if dry_run:
+        print("(Ini cuma simulasi — jalankan tanpa --dry-run untuk eksekusi nyata)")
+    # TODO: file dengan nama sama di folder tujuan masih akan tertimpa
+    # shutil.move(). Ini risiko #2 di pre-project.md, belum ditangani.
 
 
 if __name__ == "__main__":

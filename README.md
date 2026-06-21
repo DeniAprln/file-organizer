@@ -1,52 +1,52 @@
 # File Organizer
 
-> Script Python sederhana yang otomatis merapikan folder berantakan (misalnya Downloads) dengan memindahkan setiap file ke subfolder sesuai tipenya.
+> A simple Python script that automatically organizes messy folders (e.g., Downloads) by moving each file into a subfolder according to its type.
 
-Proses berpikir lengkap project ini (problem statement, scope, keputusan teknis) didokumentasikan di folder [`docs/`](./docs) dan bisa ditelusuri lewat git history — bukan cuma kode jadi.
+The complete thought process of this project (problem statement, scope, technical decisions) is documented in the [`docs/`](./docs) folder and can be traced through the git history — not just the finished code.
 
 ## The Problem
 
-Folder seperti `Downloads` sering jadi tempat sampah digital — PDF, gambar, installer, dan dokumen semua tercampur jadi satu. Merapikannya secara manual itu membosankan dan biasanya tidak pernah benar-benar dilakukan secara rutin.
+Folders like `Downloads` often become digital dumping grounds — PDFs, images, installers, and documents all mixed together. Organizing them manually is tedious and usually never actually done on a regular basis.
 
 ## How It Works
 
-Jalankan script, tunjuk ke folder yang mau dirapikan, dan setiap file akan otomatis dipindahkan ke subfolder berdasarkan tipenya.
+Run the script, point it to the folder you want to organize, and every file will automatically be moved to a subfolder based on its type.
 
-**Sebelum:**
+**Before:**
 ```
 Downloads/
-├── laporan.pdf
-├── foto.jpg
-├── musik.mp3
+├── report.pdf
+├── photo.jpg
+├── music.mp3
 ├── data.xlsx
 ├── installer.exe
-└── arsip.zip
+└── archive.zip
 ```
 
-**Sesudah:**
+**After:**
 ```
 Downloads/
-├── Documents/laporan.pdf
-├── Images/foto.jpg
-├── Audio/musik.mp3
+├── Documents/report.pdf
+├── Images/photo.jpg
+├── Audio/music.mp3
 ├── Spreadsheets/data.xlsx
 ├── Installers/installer.exe
-└── Archives/arsip.zip
+└── Archives/archive.zip
 ```
 
 ## Architecture
 
 ```
 organizer.py
-├── FILE_CATEGORIES      # mapping ekstensi -> nama folder kategori
-├── get_category()       # tentukan kategori dari ekstensi file
-├── resolve_collision()  # cegah file tertimpa jika nama sudah ada
-└── organize_folder()    # fungsi utama: scan folder lalu pindahkan file
+├── FILE_CATEGORIES      # extension mapping -> category folder name
+├── get_category()       # determine category from file extension
+├── resolve_collision()  # prevent file overwriting if name already exists
+└── organize_folder()    # main function: scan folder then move files
 ```
 
-**Key decisions** (detail lengkap di [`docs/decision-log.md`](./docs/decision-log.md)):
-- **Collision ditangani dengan rename otomatis**, bukan overwrite atau skip — menyeimbangkan keamanan data dengan sifat otomatis yang jadi tujuan project ini
-- **Tidak ada dependency eksternal** — sengaja dibuat hanya dengan built-in Python untuk fokus ke logic dasar dan kemudahan setup
+**Key decisions** (full details in [`docs/decision-log.md`](./docs/decision-log.md)):
+- **Collisions are handled with auto-rename**, not overwrite or skip — balancing data safety with the automated nature that is the goal of this project
+- **No external dependencies** — intentionally built using only built-in Python to focus on basic logic and ease of setup
 
 ## Getting Started
 
@@ -54,35 +54,35 @@ organizer.py
 git clone https://github.com/[username]/file-organizer
 cd file-organizer
 
-# Simulasi dulu (tidak memindahkan file apa pun)
-python organizer.py /path/ke/folder --dry-run
+# Simulate first (does not move any files)
+python organizer.py /path/to/folder --dry-run
 
-# Eksekusi beneran
-python organizer.py /path/ke/folder
+# Real execution
+python organizer.py /path/to/folder
 ```
 
-Tidak ada dependency eksternal — cukup Python 3.6+.
+No external dependencies — Python 3.6+ is sufficient.
 
 ## Project Documentation
 
-- [`docs/pre-project.md`](./docs/pre-project.md) — problem statement, target user, scope, dan risiko yang diidentifikasi sebelum coding dimulai
-- [`docs/decision-log.md`](./docs/decision-log.md) — keputusan teknis non-trivial selama development, lengkap dengan opsi yang dipertimbangkan
+- [`docs/pre-project.md`](./docs/pre-project.md) — problem statement, target user, scope, and risks identified before coding began
+- [`docs/decision-log.md`](./docs/decision-log.md) — non-trivial technical decisions during development, complete with options considered
 
 ## Known Limitations
 
-Ini trade-off yang disadari, bukan kelalaian:
+These are conscious trade-offs, not oversights:
 
-- **Tidak rekursif ke subfolder** — hanya memproses file di level folder yang ditunjuk. Sengaja dibatasi supaya tidak mengacak-acak struktur folder yang sudah rapi.
-- **Tidak ada undo otomatis** — kalau salah jalankan, harus dipindahkan manual kembali. Lihat decision log soal alasan tidak memakai library recycle bin di versi ini.
-- **Kategori ekstensi hardcoded** — menambah tipe file baru harus edit kode langsung, belum ada file config terpisah.
+- **Not recursive to subfolders** — only processes files at the designated folder level. Intentionally limited so as not to mess up already organized folder structures.
+- **No automatic undo** — if run by mistake, must be moved back manually. See the decision log for reasons not to use a recycle bin library in this version.
+- **Hardcoded extension categories** — adding new file types requires editing the code directly, there is no separate config file yet.
 
 ## What I'd Do Differently
 
-Jika mulai ulang:
-1. Tambahkan file `config.json` untuk kategori — supaya bisa dikustomisasi tanpa edit kode
-2. Tambahkan logging ke file (bukan cuma print ke terminal) — supaya ada riwayat yang bisa ditelusuri atau di-undo
+If starting over:
+1. Add a `config.json` file for categories — so it can be customized without editing the code
+2. Add logging to a file (not just print to terminal) — to have a history that can be traced or undone
 
 ## Lessons Learned
 
-- **Teknis:** `pathlib` jauh lebih nyaman dibanding `os.path` untuk operasi path — lebih sedikit kode, lebih mudah dibaca
-- **Proses:** menulis dry-run mode sebelum logic pemindahan nyata membuat testing jauh lebih aman, karena bisa lihat hasil tanpa risiko merusak data. Membangun fitur secara bertahap (skeleton → kategorisasi → pemindahan → collision handling) juga membuat tiap bug lebih mudah dilacak ke commit penyebabnya.
+- **Technical:** `pathlib` is much more convenient than `os.path` for path operations — less code, easier to read
+- **Process:** writing a dry-run mode before actual moving logic makes testing much safer, because you can see the results without the risk of destroying data. Building features gradually (skeleton → categorization → moving → collision handling) also makes each bug easier to trace to the commit that caused it.

@@ -38,6 +38,30 @@ def get_category(extension: str) -> str:
     return "Others"
 
 
+def resolve_collision(destination: Path) -> Path:
+    """
+    Kalau nama file sudah ada di folder tujuan, jangan menimpa file lama.
+    Tambahkan angka di belakang nama file: foto.jpg -> foto_1.jpg
+
+    Lihat docs/decision-log.md untuk alasan kenapa pendekatan ini dipilih
+    dibanding skip atau overwrite.
+    """
+    if not destination.exists():
+        return destination
+
+    counter = 1
+    stem = destination.stem
+    suffix = destination.suffix
+    parent = destination.parent
+
+    new_destination = parent / f"{stem}_{counter}{suffix}"
+    while new_destination.exists():
+        counter += 1
+        new_destination = parent / f"{stem}_{counter}{suffix}"
+
+    return new_destination
+
+
 def organize_folder(folder_path: str, dry_run: bool = False) -> None:
     """
     Fungsi utama: scan folder, lalu pindahkan tiap file ke subfolder
@@ -67,6 +91,7 @@ def organize_folder(folder_path: str, dry_run: bool = False) -> None:
         category = get_category(item.suffix)
         target_folder = folder / category
         destination = target_folder / item.name
+        destination = resolve_collision(destination)
 
         if dry_run:
             print(f"[DRY RUN] {item.name} -> {category}/{destination.name}")
@@ -80,8 +105,6 @@ def organize_folder(folder_path: str, dry_run: bool = False) -> None:
     print(f"\nSelesai. {moved_count} file diproses.")
     if dry_run:
         print("(Ini cuma simulasi — jalankan tanpa --dry-run untuk eksekusi nyata)")
-    # TODO: file dengan nama sama di folder tujuan masih akan tertimpa
-    # shutil.move(). Ini risiko #2 di pre-project.md, belum ditangani.
 
 
 if __name__ == "__main__":

@@ -1,19 +1,22 @@
 """
-File Organizer Otomatis
+Automatic File Organizer
 ------------------------
-Lihat docs/pre-project.md untuk problem statement dan scope lengkap.
+See docs/pre-project.md for the problem statement and full scope.
 
-Status: bisa memindahkan file secara nyata, dengan mode --dry-run
-untuk simulasi aman sebelum eksekusi.
+Status: can actually move files, with --dry-run mode
+for safe simulation before execution.
+Logging: supports --log flag to write a timestamped log file to logs/.
 """
 
 import sys
 import shutil
+import logging
+from datetime import datetime
 from pathlib import Path
 
-# Mapping ekstensi -> nama folder kategori.
-# Dipisah jadi dictionary (bukan if/elif panjang) supaya gampang
-# ditambah tanpa mengubah logic di get_category().
+# Extension mapping -> category folder name.
+# Separated into a dictionary (instead of long if/elif) so it's easy
+# to add without changing the logic in get_category().
 FILE_CATEGORIES = {
     "Images": [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"],
     "Documents": [".pdf", ".doc", ".docx", ".txt", ".md", ".odt"],
@@ -25,11 +28,51 @@ FILE_CATEGORIES = {
 }
 
 
+def setup_logging(log_to_file: bool) -> logging.Logger:
+    """
+    Configure and return the application logger.
+
+    Always attaches a StreamHandler so terminal output looks exactly
+    like the old print() calls (plain message, no level prefix).
+    When log_to_file=True, also attaches a FileHandler that writes to
+    logs/organizer_<timestamp>.log with full timestamp + level info,
+    creating the logs/ directory if it does not yet exist.
+    """
+    logger = logging.getLogger("organizer")
+    logger.setLevel(logging.DEBUG)
+
+    # --- Terminal handler: plain message only, same feel as print() ---
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.DEBUG)
+    stream_handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(stream_handler)
+
+    # --- File handler: only when --log flag is passed ---
+    if log_to_file:
+        logs_dir = Path(__file__).parent / "logs"
+        logs_dir.mkdir(exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        log_path = logs_dir / f"organizer_{timestamp}.log"
+
+        file_handler = logging.FileHandler(log_path, encoding="utf-8")
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(
+            logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+        )
+        logger.addHandler(file_handler)
+
+        # Let the user know where the log is being written
+        logger.info(f"Logging to: {log_path}")
+
+    return logger
+
+
 def get_category(extension: str) -> str:
     """
-    Tentukan kategori folder dari ekstensi file.
-    Ekstensi yang tidak dikenal masuk ke "Others" (fallback default),
-    sesuai mitigasi risiko #3 di pre-project.md.
+    Determine the category folder from the file extension.
+    Unknown extensions go to "Others" (default fallback),
+    according to risk mitigation #3 in pre-project.md.
     """
     extension = extension.lower()
     for category, extensions in FILE_CATEGORIES.items():
@@ -40,11 +83,11 @@ def get_category(extension: str) -> str:
 
 def resolve_collision(destination: Path) -> Path:
     """
-    Kalau nama file sudah ada di folder tujuan, jangan menimpa file lama.
-    Tambahkan angka di belakang nama file: foto.jpg -> foto_1.jpg
+    If a file with the same name already exists in the destination folder, do not overwrite the old file.
+    Add a number behind the file name: photo.jpg -> photo_1.jpg
 
-    Lihat docs/decision-log.md untuk alasan kenapa pendekatan ini dipilih
-    dibanding skip atau overwrite.
+    See docs/decision-log.md for the reason why this approach was chosen
+    instead of skip or overwrite.
     """
     if not destination.exists():
         return destination
@@ -62,25 +105,39 @@ def resolve_collision(destination: Path) -> Path:
     return new_destination
 
 
-def organize_folder(folder_path: str, dry_run: bool = False) -> None:
+def organize_folder(
+    folder_path: str, dry_run: bool = False, logger: logging.Logger = None
+) -> None:
     """
-    Fungsi utama: scan folder, lalu pindahkan tiap file ke subfolder
-    sesuai kategorinya.
+    Main function: scan folder, then move each file to a subfolder
+    according to its category.
 
-    dry_run=True artinya cuma SIMULASI (print apa yang AKAN terjadi,
-    tanpa benar-benar memindahkan file). Ini penting untuk testing aman
-    sebelum dijalankan ke folder asli — sesuai mitigasi risiko #1
-    di pre-project.md.
+    dry_run=True means only SIMULATION (print what WILL happen,
+    without actually moving the files). This is important for safe testing
+    before running on the real folder — according to risk mitigation #1
+    in pre-project.md.
+
+    logger is the configured Logger instance from setup_logging(). When
+    file logging is enabled it will also write every message to the log file.
     """
+    # Fallback to a basic logger if called without one (e.g. in tests/imports)
+    if logger is None:
+        logger = logging.getLogger("organizer")
+        if not logger.handlers:
+            logging.basicConfig(format="%(message)s", level=logging.DEBUG)
+
     folder = Path(folder_path)
 
     if not folder.exists():
-        print(f"❌ Folder tidak ditemukan: {folder}")
+        logger.error(f"❌ Folder not found: {folder}")
         return
 
     if not folder.is_dir():
-        print(f"❌ Path ini bukan folder: {folder}")
+        logger.error(f"❌ This path is not a folder: {folder}")
         return
+
+    mode_label = "DRY RUN" if dry_run else "LIVE"
+    logger.info(f"--- Session start | folder: {folder} | mode: {mode_label} ---")
 
     moved_count = 0
 
@@ -94,25 +151,29 @@ def organize_folder(folder_path: str, dry_run: bool = False) -> None:
         destination = resolve_collision(destination)
 
         if dry_run:
-            print(f"[DRY RUN] {item.name} -> {category}/{destination.name}")
+            logger.info(f"[DRY RUN] {item.name} -> {category}/{destination.name}")
         else:
             target_folder.mkdir(exist_ok=True)
             shutil.move(str(item), str(destination))
-            print(f"✅ {item.name} -> {category}/{destination.name}")
+            logger.info(f"✅ {item.name} -> {category}/{destination.name}")
 
         moved_count += 1
 
-    print(f"\nSelesai. {moved_count} file diproses.")
+    logger.info(f"\nDone. {moved_count} files processed.")
     if dry_run:
-        print("(Ini cuma simulasi — jalankan tanpa --dry-run untuk eksekusi nyata)")
+        logger.info("(This is only a simulation — run without --dry-run for real execution)")
+
+    logger.info(f"--- Session end ---")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Cara pakai: python organizer.py <folder_path> [--dry-run]")
+        print("Usage: python organizer.py <folder_path> [--dry-run] [--log]")
         sys.exit(1)
 
     target_path = sys.argv[1]
     is_dry_run = "--dry-run" in sys.argv
+    is_logging = "--log" in sys.argv
 
-    organize_folder(target_path, dry_run=is_dry_run)
+    app_logger = setup_logging(log_to_file=is_logging)
+    organize_folder(target_path, dry_run=is_dry_run, logger=app_logger)

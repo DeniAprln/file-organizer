@@ -2,88 +2,88 @@
 
 ## Problem Statement
 
-**Siapa yang punya masalah ini:**
-Siapa pun yang sering download file — mahasiswa, pekerja, atau saya sendiri.
-Folder `Downloads` jadi tempat campur aduk: PDF tugas, screenshot, installer,
-file zip semua jadi satu.
+**Who has this problem:**
+Anyone who regularly downloads files — students, workers, or myself.
+The `Downloads` folder becomes a dumping ground: assignment PDFs, screenshots,
+installers, and zip files all mixed together.
 
-**Masalah yang mereka hadapi:**
-Susah cari file lama karena semua bercampur tanpa kategori. Mau cari 1 PDF
-harus scroll lewat puluhan file lain yang tidak relevan.
+**The problem they face:**
+Hard to find old files because everything is mixed without any category.
+To find one PDF you have to scroll past dozens of other irrelevant files.
 
-**Seberapa sering mereka menghadapinya:**
-Hampir tiap minggu — setiap kali download sesuatu baru, folder makin
-berantakan, dan tidak pernah benar-benar dirapikan karena terasa membosankan.
+**How often they face it:**
+Almost every week — every time something new is downloaded, the folder gets
+messier, and it never actually gets organized because it feels too tedious.
 
-**Kenapa solusi yang ada tidak cukup:**
-Merapikan manual (drag satu-satu ke folder) memungkinkan tapi memakan waktu
-dan tidak pernah dilakukan secara rutin. Tidak ada habit untuk itu.
+**Why existing solutions aren't enough:**
+Manual organization (dragging files one by one into folders) is possible
+but time-consuming and never done consistently. There's no habit for it.
 
-**Definisi sukses (measurable):**
-Script bisa memindahkan minimal 5 tipe file berbeda (PDF, gambar, spreadsheet,
-installer, arsip) ke folder yang sesuai, tanpa ada file yang hilang atau
-tertimpa, dan bisa dijalankan oleh orang lain dalam kurang dari 2 menit
-setelah clone repo.
+**Definition of success (measurable):**
+The script can move at least 5 different file types (PDF, images, spreadsheets,
+installers, archives) to the appropriate folder, with no files lost or
+overwritten, and can be run by someone else in under 2 minutes after cloning
+the repo.
 
 ---
 
-## Target User Spesifik
+## Specific Target User
 
-Bukan "semua orang" — fokus ke: **mahasiswa/pekerja individu yang punya
-satu folder Downloads pribadi dan ingin merapikannya sendiri**, bukan
-admin sistem yang mengelola banyak komputer/server.
+Not "everyone" — focused on: **individual students or workers who have
+one personal Downloads folder and want to organize it themselves**, not
+system admins managing many computers or servers.
 
 ---
 
 ## Success Metric
 
-- ✅ Berhasil mengkategorikan minimal 7 tipe ekstensi umum
-- ✅ Tidak ada file yang tertimpa (collision ditangani)
-- ✅ Ada mode simulasi (dry-run) sebelum eksekusi nyata
-- ✅ Bisa dijalankan tanpa install dependency tambahan
+- ✅ Successfully categorizes at least 7 common file extension types
+- ✅ No files are overwritten (collisions are handled)
+- ✅ A simulation mode (dry-run) is available before real execution
+- ✅ Can be run without installing any additional dependencies
 
 ---
 
 ## Scope
 
-### ✅ IN SCOPE (akan dibangun)
-- [ ] Scan satu folder (non-rekursif)
-- [ ] Kategorikan file berdasarkan ekstensi
-- [ ] Mode dry-run (simulasi tanpa eksekusi)
-- [ ] Penanganan collision nama file
+### ✅ IN SCOPE (will be built)
+- [ ] Scan a single folder (non-recursive)
+- [ ] Categorize files by extension
+- [ ] Dry-run mode (simulation without execution)
+- [ ] File name collision handling
 
-### ❌ OUT OF SCOPE (dan kenapa)
+### ❌ OUT OF SCOPE (and why)
 
-| Fitur                          | Alasan tidak dibangun (versi ini)                        |
-|---------------------------------|-----------------------------------------------------------|
-| GUI                             | Fokus dulu ke logic yang benar; GUI nambah kompleksitas   |
-| Scan rekursif ke subfolder      | Risiko mengacak-acak struktur folder yang sudah rapi      |
-| Jalan otomatis di background    | Butuh scheduler terpisah; bukan masalah inti yang ingin diselesaikan dulu |
-| Sortir berdasarkan tanggal      | Satu masalah dulu (tipe file) sebelum nambah dimensi lain |
-
----
-
-## Tech Stack + Alasan
-
-**Python 3 — hanya built-in library (`os`, `shutil`, `pathlib`)**
-
-Alasan: ini project pertama untuk belajar fundamental Python tanpa
-ketergantungan eksternal. Tidak butuh kecepatan tinggi atau concurrency,
-jadi tidak perlu library tambahan. `pathlib` dipilih dibanding `os.path`
-karena API-nya lebih modern dan mudah dibaca.
+| Feature                        | Reason not built (this version)                                     |
+|--------------------------------|----------------------------------------------------------------------|
+| GUI                            | Focus on correct logic first; a GUI adds complexity                  |
+| Recursive scan into subfolders | Risk of disrupting folder structures that are already organized      |
+| Auto-run in the background     | Requires a separate scheduler; not the core problem to solve first   |
+| Sort by date                   | Solve one problem (file type) before adding another dimension        |
 
 ---
 
-## 3 Risiko Utama
+## Tech Stack + Rationale
 
-1. **Salah pindah/hapus file penting**
-   → Mitigasi: testing di folder dummy dulu, bukan folder asli. Sediakan
-   mode `--dry-run` supaya bisa preview sebelum eksekusi nyata.
+**Python 3 — built-in libraries only (`os`, `shutil`, `pathlib`)**
 
-2. **File dengan nama sama tertimpa saat dipindah**
-   → Mitigasi: cek collision sebelum memindahkan, tambahkan suffix angka
-   kalau nama sudah dipakai di folder tujuan.
+Rationale: this is a first project to practice Python fundamentals without
+external dependencies. No need for high speed or concurrency, so no
+additional libraries are required. `pathlib` was chosen over `os.path`
+because its API is more modern and easier to read.
 
-3. **Tipe file yang tidak dikenali (ekstensi aneh/tidak ada di daftar)**
-   → Mitigasi: sediakan folder default "Others" sebagai fallback, supaya
-   tidak ada file yang gagal diproses atau menyebabkan error.
+---
+
+## 3 Main Risks
+
+1. **Accidentally moving or deleting an important file**
+   → Mitigation: test on a dummy folder first, not the real one. Provide
+   a `--dry-run` mode so the result can be previewed before real execution.
+
+2. **A file being overwritten by another with the same name during the move**
+   → Mitigation: check for collisions before moving; add a numeric suffix
+   if the name is already taken in the destination folder.
+
+3. **Unrecognized file types (unusual or unlisted extensions)**
+   → Mitigation: provide a default "Others" folder as a fallback, so no
+   file fails to be processed or causes an error.

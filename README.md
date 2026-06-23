@@ -39,6 +39,7 @@ Downloads/
 ```
 organizer.py
 ├── FILE_CATEGORIES      # extension mapping -> category folder name
+├── setup_logging()      # configure terminal + optional file logger
 ├── get_category()       # determine category from file extension
 ├── resolve_collision()  # prevent file overwriting if name already exists
 └── organize_folder()    # main function: scan folder then move files
@@ -59,9 +60,17 @@ python organizer.py /path/to/folder --dry-run
 
 # Real execution
 python organizer.py /path/to/folder
+
+# Real execution with file logging (saves a timestamped log to logs/)
+python organizer.py /path/to/folder --log
+
+# Combine dry-run + log (safest for first-time use)
+python organizer.py /path/to/folder --dry-run --log
 ```
 
 No external dependencies — Python 3.6+ is sufficient.
+
+Log files are saved to `logs/organizer_YYYY-MM-DD_HH-MM-SS.log` in the same directory as the script.
 
 ## Project Documentation
 
@@ -80,7 +89,6 @@ These are conscious trade-offs, not oversights:
 
 If starting over:
 1. Add a `config.json` file for categories — so it can be customized without editing the code
-2. Add logging to a file (not just print to terminal) — to have a history that can be traced or undone
 
 ## Lessons Learned
 

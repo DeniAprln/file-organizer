@@ -1,0 +1,11 @@
+{
+  "categories": {
+    "Images":      [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"],
+    "Documents":   [".pdf", ".doc", ".docx", ".txt", ".md", ".odt"],
+    "Spreadsheets":[".xls", ".xlsx", ".csv"],
+    "Archives":    [".zip", ".rar", ".7z", ".tar", ".gz"],
+    "Installers":  [".exe", ".msi", ".dmg", ".pkg", ".deb"],
+    "Audio":       [".mp3", ".wav", ".flac", ".m4a"],
+    "Video":       [".mp4", ".mov", ".avi", ".mkv"]
+  }
+}

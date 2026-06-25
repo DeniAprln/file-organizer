@@ -6,26 +6,49 @@ See docs/pre-project.md for the problem statement and full scope.
 Status: can actually move files, with --dry-run mode
 for safe simulation before execution.
 Logging: supports --log flag to write a timestamped log file to logs/.
+Config: file categories are loaded from config.json (next to this script),
+so new file types can be added without editing the code.
 """
 
 import sys
+import json
 import shutil
 import logging
 from datetime import datetime
 from pathlib import Path
 
-# Extension mapping -> category folder name.
-# Separated into a dictionary (instead of long if/elif) so it's easy
-# to add without changing the logic in get_category().
-FILE_CATEGORIES = {
-    "Images": [".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"],
-    "Documents": [".pdf", ".doc", ".docx", ".txt", ".md", ".odt"],
-    "Spreadsheets": [".xls", ".xlsx", ".csv"],
-    "Archives": [".zip", ".rar", ".7z", ".tar", ".gz"],
-    "Installers": [".exe", ".msi", ".dmg", ".pkg", ".deb"],
-    "Audio": [".mp3", ".wav", ".flac", ".m4a"],
-    "Video": [".mp4", ".mov", ".avi", ".mkv"],
-}
+# Path to the config file (sits next to this script).
+CONFIG_PATH = Path(__file__).parent / "config.json"
+
+
+def load_categories() -> dict:
+    """
+    Load the extension-to-category mapping from config.json.
+
+    The file must live next to organizer.py and follow this structure:
+        { "categories": { "CategoryName": [".ext1", ".ext2"] } }
+
+    Raises FileNotFoundError if config.json is missing, and
+    KeyError/ValueError if the JSON structure is invalid — both
+    with a clear message so the user knows exactly what to fix.
+    """
+    if not CONFIG_PATH.exists():
+        raise FileNotFoundError(
+            f"❌ Config file not found: {CONFIG_PATH}\n"
+            "   Please create config.json next to organizer.py.\n"
+            "   See README.md for the expected format."
+        )
+
+    with CONFIG_PATH.open(encoding="utf-8") as f:
+        data = json.load(f)
+
+    if "categories" not in data or not isinstance(data["categories"], dict):
+        raise ValueError(
+            f"❌ Invalid config.json: expected a top-level 'categories' object.\n"
+            f"   Example: {{ \"categories\": {{ \"Images\": [\".jpg\", \".png\"] }} }}"
+        )
+
+    return data["categories"]
 
 
 def setup_logging(log_to_file: bool) -> logging.Logger:
@@ -68,14 +91,16 @@ def setup_logging(log_to_file: bool) -> logging.Logger:
     return logger
 
 
-def get_category(extension: str) -> str:
+def get_category(extension: str, categories: dict) -> str:
     """
     Determine the category folder from the file extension.
+
+    categories is the dict loaded from config.json.
     Unknown extensions go to "Others" (default fallback),
     according to risk mitigation #3 in pre-project.md.
     """
     extension = extension.lower()
-    for category, extensions in FILE_CATEGORIES.items():
+    for category, extensions in categories.items():
         if extension in extensions:
             return category
     return "Others"
@@ -119,12 +144,24 @@ def organize_folder(
 
     logger is the configured Logger instance from setup_logging(). When
     file logging is enabled it will also write every message to the log file.
+
+    Categories are loaded from config.json at the start of each run,
+    so changes to the config take effect immediately without restarting.
     """
     # Fallback to a basic logger if called without one (e.g. in tests/imports)
     if logger is None:
         logger = logging.getLogger("organizer")
         if not logger.handlers:
             logging.basicConfig(format="%(message)s", level=logging.DEBUG)
+
+    # Load categories from config.json — fail early with a clear message.
+    try:
+        categories = load_categories()
+    except (FileNotFoundError, ValueError, json.JSONDecodeError) as exc:
+        logger.error(str(exc))
+        return
+
+    logger.info(f"📋 Loaded {len(categories)} categories from {CONFIG_PATH.name}")
 
     folder = Path(folder_path)
 
@@ -145,7 +182,7 @@ def organize_folder(
         if item.is_dir():
             continue
 
-        category = get_category(item.suffix)
+        category = get_category(item.suffix, categories)
         target_folder = folder / category
         destination = target_folder / item.name
         destination = resolve_collision(destination)

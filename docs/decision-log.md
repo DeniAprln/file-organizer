@@ -2,6 +2,61 @@
 
 ---
 
+## [2026-06-25] Moving file categories to an external config.json
+
+**Context:**
+The original `FILE_CATEGORIES` dictionary was hardcoded inside `organizer.py`.
+Adding or renaming a category (e.g., adding `.webm` to Video) required the user
+to open and edit the source file — a poor experience for a tool that is meant to
+be easy to use. This was explicitly noted as a Known Limitation and under
+"What I'd Do Differently" in the README.
+
+**Options considered:**
+
+1. **Keep hardcoded dict, but add CLI flags for custom extensions**
+   - Pro: no new files, purely flag-driven
+   - Con: flags become unwieldy for multiple categories; the full mapping still
+     has to be re-specified on every run — not a real improvement
+
+2. **Move to an external `config.json`**
+   - Pro: human-readable, easy to edit with any text editor, reloaded on every
+     run so changes take effect immediately, still zero external dependencies
+     (Python's built-in `json` module)
+   - Con: adds a new required file — script fails if it is accidentally deleted
+
+3. **Move to a `.ini` / `.toml` / `.yaml` file**
+   - Pro: arguably more idiomatic for config files
+   - Con: `.toml` requires `tomllib` (Python 3.11+) or a third-party library;
+     `.ini` has awkward list support; JSON is already built-in and universally
+     readable
+
+**Decision:** Option 2 — external `config.json`
+
+**Rationale:**
+JSON is the lowest-friction choice: no new dependencies, readable by anyone,
+and directly maps to Python's dict structure (the same shape as the old
+`FILE_CATEGORIES`). The risk of the file being missing is mitigated by a
+clear error message in `load_categories()` that tells the user exactly what
+to do.
+
+**Technical details:**
+- `config.json` lives next to `organizer.py` and uses a single top-level key
+  `"categories"` whose value is the category-to-extensions mapping
+- `load_categories()` validates the structure and raises `FileNotFoundError`
+  or `ValueError` with a descriptive message if anything is wrong
+- `organize_folder()` loads the config once at the top of each run (fail-fast)
+  and passes the resulting dict down to `get_category()`
+- `get_category()` signature updated to accept `categories: dict` instead of
+  reading the global `FILE_CATEGORIES`
+
+**Trade-off accepted:**
+If `config.json` is deleted or corrupted, the script exits with an error instead
+of falling back to a default. This is intentional: silently falling back to a
+built-in list would hide the problem and could confuse the user about why their
+customizations are not taking effect.
+
+---
+
 ## [2026-06-22] Implementing file logging with the --log flag
 
 **Context:**

@@ -46,11 +46,13 @@ system admins managing many computers or servers.
 
 ## Scope
 
-### ✅ IN SCOPE (will be built)
-- [ ] Scan a single folder (non-recursive)
-- [ ] Categorize files by extension
-- [ ] Dry-run mode (simulation without execution)
-- [ ] File name collision handling
+### ✅ IN SCOPE (built)
+- [x] Scan a single folder (non-recursive)
+- [x] Categorize files by extension
+- [x] Dry-run mode (simulation without execution)
+- [x] File name collision handling
+- [x] Customizable categories via external `config.json` — originally out of scope,
+      added in v2 so new file types can be added without editing the code
 
 ### ❌ OUT OF SCOPE (and why)
 
@@ -60,17 +62,19 @@ system admins managing many computers or servers.
 | Recursive scan into subfolders | Risk of disrupting folder structures that are already organized      |
 | Auto-run in the background     | Requires a separate scheduler; not the core problem to solve first   |
 | Sort by date                   | Solve one problem (file type) before adding another dimension        |
+| ~~Hardcoded categories~~       | ~~Was a known limitation in v1~~ → resolved in v2 via `config.json` |
 
 ---
 
 ## Tech Stack + Rationale
 
-**Python 3 — built-in libraries only (`os`, `shutil`, `pathlib`)**
+**Python 3 — built-in libraries only (`sys`, `json`, `shutil`, `pathlib`, `logging`)**
 
 Rationale: this is a first project to practice Python fundamentals without
 external dependencies. No need for high speed or concurrency, so no
 additional libraries are required. `pathlib` was chosen over `os.path`
-because its API is more modern and easier to read.
+because its API is more modern and easier to read. `json` was added in v2
+to support reading the external `config.json` category mapping.
 
 ---
 

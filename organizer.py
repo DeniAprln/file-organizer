@@ -8,6 +8,8 @@ for safe simulation before execution.
 Logging: supports --log flag to write a timestamped log file to logs/.
 Config: file categories are loaded from config.json (next to this script),
 so new file types can be added without editing the code.
+Undo: every live run saves a record to undo_log.json; pass --undo to
+reverse the most recent session without touching any other files.
 """
 
 import sys
@@ -19,6 +21,10 @@ from pathlib import Path
 
 # Path to the config file (sits next to this script).
 CONFIG_PATH = Path(__file__).parent / "config.json"
+
+# Undo log: records every move made so the last session can be reversed.
+# Each entry is { "from": "<original path>", "to": "<destination path>" }.
+UNDO_LOG_PATH = Path(__file__).parent / "undo_log.json"
 
 
 def load_categories() -> dict:
@@ -130,6 +136,85 @@ def resolve_collision(destination: Path) -> Path:
     return new_destination
 
 
+def save_undo_log(moves: list) -> None:
+    """
+    Persist the list of moves from the current session to undo_log.json,
+    replacing any previous session's data.
+
+    Each item in `moves` is a dict with keys "from" and "to" (absolute
+    string paths), so the undo step can reverse the move exactly.
+
+    Overwriting the previous log on every live run is intentional: only
+    the most recent session can be undone, which keeps the logic simple
+    and prevents the log from growing unbounded.
+    See docs/decision-log.md for the full rationale.
+    """
+    data = {
+        "session_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "moves": moves,
+    }
+    with UNDO_LOG_PATH.open("w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def undo_last_session(logger: logging.Logger) -> None:
+    """
+    Reverse the moves recorded in undo_log.json.
+
+    Each file is moved back from its destination to its original path.
+    If the original location already has a file with the same name
+    (an edge case where the user put a new file there manually),
+    resolve_collision() is used so nothing is overwritten.
+
+    After a successful undo the log file is deleted — running --undo
+    twice in a row would have nothing to reverse.
+    """
+    if not UNDO_LOG_PATH.exists():
+        logger.error(
+            "❌ No undo log found. Run the organizer at least once (without --dry-run) first."
+        )
+        return
+
+    with UNDO_LOG_PATH.open(encoding="utf-8") as f:
+        data = json.load(f)
+
+    moves = data.get("moves", [])
+    session_time = data.get("session_time", "unknown")
+
+    if not moves:
+        logger.info("ℹ️  Undo log is empty — nothing to reverse.")
+        UNDO_LOG_PATH.unlink()
+        return
+
+    logger.info(f"↩️  Undoing session from {session_time} ({len(moves)} moves)...")
+
+    restored_count = 0
+    failed_count = 0
+
+    for move in reversed(moves):
+        src = Path(move["to"])
+        dst = Path(move["from"])
+
+        if not src.exists():
+            logger.warning(f"⚠️  Skipped (file not found at destination): {src}")
+            failed_count += 1
+            continue
+
+        # Ensure the original folder still exists (it should, but be safe).
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst = resolve_collision(dst)
+
+        shutil.move(str(src), str(dst))
+        logger.info(f"↩️  {src.name} -> {dst}")
+        restored_count += 1
+
+    logger.info(f"\nUndo complete. {restored_count} restored, {failed_count} skipped.")
+
+    # Remove the log so a second --undo doesn't try to reverse nothing.
+    UNDO_LOG_PATH.unlink()
+    logger.info("🗑️  Undo log cleared.")
+
+
 def organize_folder(
     folder_path: str, dry_run: bool = False, logger: logging.Logger = None
 ) -> None:
@@ -147,6 +232,9 @@ def organize_folder(
 
     Categories are loaded from config.json at the start of each run,
     so changes to the config take effect immediately without restarting.
+
+    Every live run writes a move record to undo_log.json so the session
+    can be reversed with --undo.
     """
     # Fallback to a basic logger if called without one (e.g. in tests/imports)
     if logger is None:
@@ -177,6 +265,8 @@ def organize_folder(
     logger.info(f"--- Session start | folder: {folder} | mode: {mode_label} ---")
 
     moved_count = 0
+    # Accumulate move records for undo_log.json (live mode only).
+    move_records = []
 
     for item in folder.iterdir():
         if item.is_dir():
@@ -193,12 +283,18 @@ def organize_folder(
             target_folder.mkdir(exist_ok=True)
             shutil.move(str(item), str(destination))
             logger.info(f"✅ {item.name} -> {category}/{destination.name}")
+            # Record the exact paths so the move can be reversed.
+            move_records.append({"from": str(item), "to": str(destination)})
 
         moved_count += 1
 
     logger.info(f"\nDone. {moved_count} files processed.")
     if dry_run:
         logger.info("(This is only a simulation — run without --dry-run for real execution)")
+    else:
+        # Persist the undo log only after a successful live run.
+        save_undo_log(move_records)
+        logger.info(f"💾 Undo log saved to {UNDO_LOG_PATH.name} (run with --undo to reverse)")
 
     logger.info(f"--- Session end ---")
 
@@ -206,11 +302,18 @@ def organize_folder(
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python organizer.py <folder_path> [--dry-run] [--log]")
+        print("       python organizer.py --undo [--log]")
         sys.exit(1)
 
-    target_path = sys.argv[1]
-    is_dry_run = "--dry-run" in sys.argv
+    is_undo = "--undo" in sys.argv
     is_logging = "--log" in sys.argv
 
     app_logger = setup_logging(log_to_file=is_logging)
-    organize_folder(target_path, dry_run=is_dry_run, logger=app_logger)
+
+    if is_undo:
+        # --undo mode: reverse last session; no folder path required.
+        undo_last_session(logger=app_logger)
+    else:
+        target_path = sys.argv[1]
+        is_dry_run = "--dry-run" in sys.argv
+        organize_folder(target_path, dry_run=is_dry_run, logger=app_logger)
